@@ -1,0 +1,148 @@
+nngdparser --- neural network graph-based dependency parser
+
+========================================
+1.the command
+    Almost all the configuration information should be specified in the configuration file.
+    Assuming the runnable file is "nngdparser", to invoke the parser, the commands are simple:
+        >> WE strongly recommend that the training and testing should be performed following the CONVETIONS in the second part,that is, each model run in its own folder.
+        >> There are some meta files and temp files which can bring surprising results if not following the CONVETIONS.
+    We only support corpus of 2008 conll's format, please look at section 4 for the format and the requires for the input corpus.
+    1.1 traning
+        nngdparser <conf-file>
+    ##if test file specified for training, the testing will be run right after the training.
+    1.2 testing
+        nngdparser <conf-file> <mach-name>
+    ##notice that the mach-name when testing should be the full-name for the mach file, and this is not the same as the mach-prefix-name in the options.
+    1.3 pre-calculating for a mach (no conf file)
+        nngdparser '/' <mach-name>
+    ##we use '/' for the second option since it can't be a configure file's name, this command will perform pre-calculations for a nn machine 
+        >> and write the pre-calculation file whose name is the machine's name with a suffix of ".precalc"
+        >> and if the precalc file exists, it will be read automatically which will be used in testing or training to speed up.
+        
+2.CONVETIONS
+    The configuration's design for the parser is kind of a mess, but if you follow the conventions stated here, training and testing will be much easier.
+    2.1 !! Simply put each model in separate directories would make it easier. -- Here we provide an example in the o1 directory with just toy datasets:
+        For example, for training a first-order model, here are the steps:
+            (1) make a directory called o1, and cd to it.
+            (2) create the configuration file in the directory(for example, the "conf_o1.example" provided in the document);
+                >> please specify the conf-file so that the model's files (such as dict-file or machine-file) are all in this directory.
+            (3) for training, run the command: <nngdparser-runable-file> <conf-file>
+                >> the resulting models include dict-file and machine-file(the one ended with ".best")
+            (4) for testing, tun the command: <nngdparser-runable-file> <conf-file> <best-machine-name>
+            (5) if you want faster testing, first run the pre-calculations: <nngdparser-runable-file> '/' <best-machine-name> and then run testing again which will be 10x faster.
+        >> Notice that the dataset we provide is just toy-example, for real training please use the real ones.
+    2.2 ?? what those files means 
+        When training and testing, there will be many model files or tmp files in the directory:
+        2.2.1 !! important files (their names can be changed in options)
+            directory file(default as vocab.dict); best machine file(default as nn.mach.best); output file(default as output.txt)
+            best machine's pre-calculation file(by adding the suffix ".precalc" to machine file's name)
+        2.2.2 some temp files (not important after training)
+            cslm's conf file(nn.conf), output file for dev corpus(output.txt.dev), temp machine file(nn.mach.curr)
+
+3.configuration files:
+    -- One option should take one line, which contains two parts(continuous part which can be read by "fin>>str;") separated by blanks; lines start with '#' will be ignored.
+    3.1 !!!Options which MUST be provided (with no default values):
+        M <algorithms-index>
+            The choice of parsing algorithms, 1 for o1, 2 for o1-pairwise(check out README2), 7 for o2sib, 8 for o2g, 9 for o3g. (again sorry for the bad form...)
+        ------FOR training-------
+        train <train-file>
+            The training corpus, currently only support conll-08 form, see that in the file-format part.
+        dev <dev-file>
+            The develop corpus, which is used to specify some hyperparameters for nn, currently MUST be specified.
+        ------FOR testing-------
+        test <test-file>
+            The test corpus, testing will be performed right after training if this option is provided.
+        gold <test-file>
+            The gold file for test file, which is used to evaluate the result.
+    3.2 Other files' names
+        output <output-file>
+            The output prediction file's name. [default as "output.txt"]
+        dict <dict-file>
+            Important dictionary file, with the same order of machine's embeddings. [default as "vocab.dict"]
+        mach-prefix <mach-prefix name>
+            The prefix for the machines's names, the suffixes are ".curr" for temp machine, ".best" for best machine, we'll usually use the best machine. [default as "nn.mach"]
+            >>In the default situations, "nn.mach.curr","nn.mach.best","nn.mach.best.precalc" will be names for temp machine, best machine, best machine's pre-calculation file.
+    3.3 Hyper-parameters for neural network
+        ## by default, we adjust the learning rate by the results of dev corpus, we will cut learning rate if dev's result gets worse.
+        nn_lrate <learning-rate>
+            The starting learning rate. [default 0.1]
+        nn_iters <iterations>
+            The minimal training iterations, real iterations are also influenced by the option nn_iters_dec. [default 10]
+        nn_iters_dec <num>
+            Finish training only after this number of cuts of learning rate, which may make the real iterations more than specified nn_iters. [default is 2]
+        nn_lmult <multiplier>
+            If less than 0, means each time cut the learning rate by minus nn_lmult;
+            if equal to 0, means no changing learning rate;
+            if bigger than 0, means multiply learning rate by 1/(1+number_of_backwards*nn_lmult) which is cslm's default schedule and doesn't perform as good as cutting methods.
+            >> [default -0.5, which means each time cut to half]
+        nn_wd <weight-decay>
+            L2 regularization hyper-parameter. [default 3e-5]
+        nn_we <dim>
+            word embedding dimension. [default 50]
+        nn_plusl <num>
+            number of hidden layers above the projective layer. [default 2]
+        nn_resample <portion>
+            The portion for the training examples for real training. [default 1, which means use all.]
+        nn_bs <batch-size>
+            Mini-batch size. [default 128]
+        nn_hsise <h1> <h2> ...
+            The dimensions for the hidden layers,the number of the remaining parameters must obey nn_plusl. [!! no default values, MUST be specified.]
+        nn_precalc <1|0>
+            whether perform pre-calculation for nn, which gives 10x speeding up for testing. [default 0]
+    3.3 Some file names for nn
+        nn_o1mach <o1mach-file>
+            The o1mach used for high-order parsing. [No default value.]
+        nn_o1mach_combine <1|0>
+            whether combine o1 scores when doing high-order parsing.    [default 1]
+        nn_o1mach_filter_cut <v>
+            Specify the cut-point for o1mach-filter, the links whose probability under this value will be filtered out. [default 0.001]
+        nn_o2sibmach <o2sibmach-file>
+            The o2sibmach for o3g parsing.  [No default value.]
+        nn_o2gmach <o2gmach-file>
+            The o2gmach for o3g parsing.  [No default value.]
+        nn_o2sib_combine <1|0>
+            whether combine o2sib scores when doing high-order parsing.  [default 1]
+        nn_o2g_combine <1|0>
+            whether combine o2g scores when doing high-order parsing.  [default 1]
+        nn_o3g_combine <1|0>
+            whether combine o3g scores when doing o3g parsing, when this is turned off, it means not really o3g parsing, which is just o2 parsing with both o2sib and o2g.  [default 1]
+        nn_init_wl <embedding-init-words-file>
+            The words' list of for init embedding.  [No default value.]
+        nn_init_em <embedding-init-embedding-file>
+            The embeddings of for init embedding.  [No default value.]
+        >> when both nn_init_wl and nn_init_em specified, the embeddings of nn will be initialized by them.
+        nn_init_scale <scale-num>
+            The scaling factor for embeddings, which fits the embeddings to our nn's initialization(which is [-0.1,0.1]). [default 0.1]
+    3.4 Options for features
+        f_xwin <n>
+            The context window for one token. [default 7]
+        f_distance <1|0>
+            Whether add distance information. [default 1]
+        f_removes <num>
+            Remove words in dictionary that occurs less or equal than num times, 0 means no removes. [default 0, but we find removing can help]
+        f_pos <1|0>
+            whether add pos info as features.   [default 1]        
+    
+4.Format for corpus
+    We ONLY support the format like those in conll 2008, each token take one line with ten fields, and sentences are separated by an empty line.
+    The columns mean: ID,FORM,?,?,PPOS,?,?,?,HEAD,?
+        >> ? means we don't care about that field and there will be a place holder "_", the last field is dependency label which we don't consider for now.
+    For example:
+        1	No	_	_	RB	_	_	_	4	ADV
+        2	,	_	_	,	_	_	_	4	P
+        3	it	_	_	PRP	_	_	_	4	SBJ
+        4	was	_	_	VBD	_	_	_	0	ROOT
+        5	n't	_	_	RB	_	_	_	4	ADV
+        6	Black	_	_	NNP	_	_	_	7	NAME
+        7	Monday	_	_	NNP	_	_	_	4	PRD
+        8	.	_	_	.	_	_	_	4	P
+
+    For our parser(only unlabeled parsing), we only use 3 fields for training and evaluating and 2 for testing:
+        >> For training and evaluating: 2nd-column(FORM,which is the token itself), 5th-column(POS,which is the golden-pos for the token),9th-column(HEAD,the gold result for our prediction)
+        >> For testing: 2nd-column(FORM,which is the token itself), 5th-column(POS,which is the predicted-pos for the token);
+            and we will output our prediction for HEAD in the 9th-column.
+        >> In a word, our parser's prediction only base on the token's form and predicted pos.
+            
+    Usually, the train corpus file will provide 4 fields with golden-pos and correct head, the dev and test file with predicted-pos, the golden file with correct head.
+    >> notice that the dev file should be its golden file and usually the test file will also be golden file for convenience.
+    

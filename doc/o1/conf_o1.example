@@ -1,0 +1,16 @@
+M 1
+train train.txt
+dev dev.txt
+test test.txt
+gold test.txt
+nn_we 50
+nn_plusl 2
+f_distance 1
+nn_iters 10
+nn_hsize 200 40
+f_xwin 7
+f_removes 2
+nn_lrate 0.1
+nn_lmult -0.5
+s_prob 1
+
