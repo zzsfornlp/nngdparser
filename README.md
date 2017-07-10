@@ -5,6 +5,8 @@
 
 This repo contains the implementation for a graph-based dependency parser with neural network. The parser is written in c++, and use simple feed-forward neural network models for high-order graph-based dependency parsing (with order1, order2-sibling, order2-grandchildren and order3-grandsibling).
 
+Please check the **updated version** of our parser [nnpgdparser](https://github.com/zzsfornlp/nnpgdparser).
+
 ### How to compile ###
 
 Change to the top-layer directory of the project, and Run "make" or directly run "bash Compile.sh" for one-time compiling.
